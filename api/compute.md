@@ -6,21 +6,19 @@ Isolated code execution in secure cloud containers via Modal. Create sandboxes, 
 
 ## Endpoints
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | `/sandbox/create` | Create a new isolated sandbox |
-| POST | `/sandbox/exec` | Execute a command in a sandbox |
-| POST | `/sandbox/status` | Get sandbox status and metadata |
-| POST | `/sandbox/terminate` | Terminate and clean up a sandbox |
+| Method | Endpoint | Description | Price |
+|--------|----------|-------------|-------|
+| POST | `/sandbox/create` | Create a new isolated sandbox | $0.01 (CPU, ≤300s) |
+| POST | `/sandbox/exec` | Execute a command in a sandbox | $0.001/request |
+| POST | `/sandbox/status` | Get sandbox status | $0.001/request |
+| POST | `/sandbox/terminate` | Terminate and cleanup | $0.001/request |
 
 ## Pricing
 
-| Endpoint | Price | Description |
-|----------|-------|-------------|
-| /sandbox/create | $0.01/sandbox | Provision a new container |
-| /sandbox/exec | $0.001/request | Execute a command |
-| /sandbox/status | $0.001/request | Query sandbox state |
-| /sandbox/terminate | $0.001/request | Teardown and cleanup |
+| Duration | CPU | GPU |
+|----------|-----|-----|
+| ≤ 300s (flat rate) | $0.01/sandbox | Varies by GPU type |
+| > 300s (per-hour) | Billed per hour | Billed per hour |
 
 ## POST /sandbox/create
 
@@ -30,12 +28,14 @@ Create a new isolated sandbox container.
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `timeout` | integer | No | Max sandbox lifetime in seconds (max 300). Default: `300` |
+| `image` | string | No | Docker image. Default: `python:3.11` |
+| `timeout` | integer | No | Max sandbox lifetime in seconds. ≤300 = flat rate, >300 = per-hour billing. Default: `300`, Max: `86400` (24h) |
 
 ### Request
 
 ```json
 {
+  "image": "python:3.11",
   "timeout": 300
 }
 ```
@@ -60,14 +60,14 @@ Run a command inside an existing sandbox.
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | `sandbox_id` | string | Yes | Sandbox identifier |
-| `command` | string | Yes | Shell command to execute |
+| `command` | string or array | Yes | Shell command (string) or command array (e.g. `["python", "-c", "print(1)"]`) |
 
 ### Request
 
 ```json
 {
   "sandbox_id": "sb_a1b2c3d4e5",
-  "command": "python -c \"import sys; print(sys.version)\""
+  "command": ["python", "-c", "import sys; print(sys.version)"]
 }
 ```
 
@@ -307,9 +307,9 @@ func main() {
 
 ## Limitations
 
-- **300s max timeout** — sandboxes auto-terminate after the configured timeout (max 5 minutes)
+- **24h max timeout** — sandboxes auto-terminate after the configured timeout (max 86400s)
+- **Flat-rate for short tasks** — ≤300s gets flat CPU $0.01, longer sessions billed per hour
 - **No persistent storage** — all data is lost when the sandbox terminates
-- **CPU only** — no GPU resources available
 - **No inbound connections** — sandboxes cannot receive network traffic from outside
 - **10MB max payload** — request and response bodies are capped at 10MB
-- **No network egress** — sandboxes operate in an isolated network environment
+- **Outbound HTTP allowed** — sandboxes can make outbound requests (pip install, curl, etc.)
