@@ -15,10 +15,33 @@ Isolated code execution in secure cloud containers via Modal. Create sandboxes, 
 
 ## Pricing
 
-| Duration | CPU | GPU |
-|----------|-----|-----|
-| ≤ 300s (flat rate) | $0.01/sandbox | Varies by GPU type |
-| > 300s (per-hour) | Billed per hour | Billed per hour |
+Two billing modes selected automatically by the requested timeout: short bursts pay a flat rate, long-lived sandboxes pay per hour.
+
+### Burst — timeout ≤ 300s
+
+Flat rate per `sandbox/create`, covers the full short-lived session. Lifecycle ops (`exec`, `status`, `terminate`) at $0.001/request.
+
+| Config | Price | Resources |
+|--------|-------|-----------|
+| CPU | $0.01/sandbox | Up to 1 vCPU, 1 GiB RAM, 300s lifetime |
+| GPU — T4 | $0.05/sandbox | Up to 8 vCPU, 32 GiB RAM, 300s lifetime |
+| GPU — L4 | $0.08/sandbox | Up to 8 vCPU, 32 GiB RAM, 300s lifetime |
+| GPU — A10G | $0.10/sandbox | Up to 8 vCPU, 32 GiB RAM, 300s lifetime |
+| GPU — A100 | $0.20/sandbox | Up to 8 vCPU, 32 GiB RAM, 300s lifetime |
+| GPU — H100 | $0.40/sandbox | Up to 8 vCPU, 32 GiB RAM, 300s lifetime |
+
+### Long-lived — timeout > 300s, up to 24h
+
+Per-hour rate × requested duration, billed upfront in one x402 settlement. No refund on early terminate (same as cloud-instance norms). Hours are exact — 90min on T4 = 1.5 × $1.50 = $2.25.
+
+| Config | Per hour | Use cases |
+|--------|----------|-----------|
+| CPU (1 vCPU / 1 GiB) | $0.10 | Batch jobs, scrapers, schedulers |
+| T4 (up to 8 vCPU / 32 GiB) | $1.50 | Light inference, small models |
+| L4 (up to 8 vCPU / 32 GiB) | $2.00 | Mid-tier inference |
+| A10G (up to 8 vCPU / 32 GiB) | $2.50 | Stable diffusion, 7B inference |
+| A100 (up to 8 vCPU / 32 GiB) | $4.00 | Training, 13B–70B inference |
+| H100 (up to 8 vCPU / 32 GiB) | $8.00 | Frontier training, low-latency 70B+ |
 
 ## POST /sandbox/create
 
