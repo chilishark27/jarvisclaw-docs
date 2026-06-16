@@ -1,83 +1,135 @@
 # Solana Payments (x402)
 
-Pay for API calls with USDC on Solana — no API key or account required.
+Pay for API calls with USDC on Solana mainnet. The SDK uses the same x402 protocol as Base chain — only the key format changes.
 
-## Overview
+## Installation
 
-JarvisClaw supports x402 payments on Solana using SPL USDC. The SDK automatically detects Solana keys from their base58 format (as opposed to hex `0x...` keys used for Base chain).
+```shell
+# Standard (EVM / Base chain support only)
+pip install jarvisclaw
 
-## How It Works
+# With Solana support
+pip install jarvisclaw[solana]
+```
 
-1. Your agent sends a request without auth
-2. Server responds HTTP 402 with payment requirements
-3. Agent signs an x402 payment using its Solana keypair
-4. Agent resends the request with the `PAYMENT-SIGNATURE` header
-5. Server verifies payment via the facilitator and returns the response
+## Automatic chain detection
 
-## Key Detection
+::: info How the SDK picks the chain
+- `0x...` — EVM hex key → Base chain (Chain ID 8453), USDC ERC-20
+- `bs58` — Solana keypair → Solana mainnet, USDC SPL
 
-The SDK detects the chain automatically from key format:
+No config flag needed — pass the key and the SDK does the rest.
+:::
 
-| Key Format | Chain | Example |
-|-----------|-------|---------|
-| Hex (`0x...`) | Base (EVM) | `0x4c0883a6...` |
-| Base58 (64-byte keypair) | Solana | `5K7gBTk8nM...` |
+## Solana requirements
 
-No manual chain configuration needed.
+- A Solana wallet with USDC (SPL) on mainnet
+- Export the full keypair (not just the public key) from Phantom or Solflare
+- The exported key will be a base58-encoded string
 
-## Python SDK
+## Initialization
 
-```python
-from jarvisclaw import AgentClient
+Pass your Solana keypair string as private_key — the SDK detects Solana automatically.
 
-# Solana key — auto-detected from base58 format
-client = AgentClient(private_key="your_solana_base58_keypair")
+::: code-group
 
-response = client.chat.completions.create(
-    model="gpt-4o",
-    messages=[{"role": "user", "content": "Hello from Solana!"}],
+```python [Python]
+from jarvisclaw import ChatClient, ImageClient
+
+# EVM wallet — hex private key (0x...) → Base chain (Chain ID 8453)
+chat = ChatClient(private_key="0x<evm-wallet-private-key>")
+
+# Solana wallet — bs58-encoded keypair → Solana mainnet
+# SDK auto-detects: if key is base58 and not hex, it uses Solana
+chat = ChatClient(private_key="<base58-solana-keypair>")
+
+# Explicit network selection
+chat = ChatClient(private_key="<key>", network="solana")
+```
+
+```go [Go]
+import jarvisclaw "github.com/api-jarvisclaw/go-sdk"
+
+// EVM wallet — hex private key (0x...) → Base chain
+client, _ := jarvisclaw.NewChatClient(jarvisclaw.WithPrivateKey("0x<evm-private-key>"))
+
+// Solana wallet — bs58-encoded keypair → Solana mainnet
+// SDK auto-detects chain from key format
+client, _ := jarvisclaw.NewChatClient(jarvisclaw.WithPrivateKey("<base58-solana-keypair>"))
+```
+
+:::
+
+## Full example
+
+All client types work with Solana — chat, image, video, audio. Only the payment layer changes.
+
+::: code-group
+
+```python [Python]
+# pip install jarvisclaw[solana]
+from jarvisclaw import ChatClient, ImageClient, VideoClient
+
+# Pass your Solana bs58 keypair — SDK detects Solana automatically
+chat = ChatClient(private_key="<base58-solana-keypair>")
+image = ImageClient(private_key="<base58-solana-keypair>")
+
+# All endpoints work exactly the same — only the payment chain changes
+response = chat.complete("Hello from Solana!")
+print(response)
+
+# Image generation — paid via Solana USDC (SPL)
+img = image.generate("A cyberpunk city at dusk")
+print(img.url)
+
+# Check wallet address (shows Solana pubkey)
+print(f"Solana wallet: {chat.address}")
+```
+
+```go [Go]
+package main
+
+import (
+    "context"
+    "fmt"
+    jarvisclaw "github.com/api-jarvisclaw/go-sdk"
 )
-print(response.choices[0].message.content)
+
+func main() {
+    ctx := context.Background()
+
+    // Pass your Solana bs58 keypair — SDK detects Solana automatically
+    chat, _ := jarvisclaw.NewChatClient(
+        jarvisclaw.WithPrivateKey("<base58-solana-keypair>"),
+    )
+
+    // All endpoints work exactly the same — only the payment chain changes
+    text, _ := chat.Complete(ctx, "Hello from Solana!")
+    fmt.Println(text)
+
+    // Image generation — paid via Solana USDC (SPL)
+    imgClient, _ := jarvisclaw.NewImageClient(
+        jarvisclaw.WithPrivateKey("<base58-solana-keypair>"),
+    )
+    img, _ := imgClient.Generate(ctx, "A cyberpunk city at dusk")
+    fmt.Println(img.URL)
+
+    // Check wallet address (shows Solana pubkey)
+    fmt.Printf("Solana wallet: %s\n", chat.Address())
+}
 ```
 
-## Go SDK
+:::
 
-```go
-// Solana keypair — detected automatically
-client := jc.New(jc.WithPrivateKey("your_solana_base58_keypair"))
+::: warning Note: Rust toolchain
+The solders library (Solana keypair signing) requires a Rust compiler during pip install. On most systems this is installed automatically. If the install fails, run: `curl --proto "=https" --tlsv1.2 -sSf https://sh.rustup.rs | sh`
+:::
 
-resp, err := client.Chat(ctx, &jc.ChatRequest{
-    Model:    "gpt-4o",
-    Messages: []jc.Message{{Role: "user", Content: "Hello from Solana!"}},
-})
-```
+## Chain comparison
 
-## Payment Details
-
-| Parameter | Value |
-|-----------|-------|
-| Network | Solana |
-| Asset | USDC (SPL Token) |
-| Facilitator | `https://api.cdp.coinbase.com/platform/v2/x402` |
-| Protocol | x402 v2 |
-
-## Getting a Solana Wallet
-
-Any Solana wallet that exposes a keypair works:
-
-- **Phantom** — export private key from settings
-- **Solflare** — export keypair
-- **solana-keygen** — `solana-keygen new --outfile key.json`
-
-Ensure your wallet holds USDC (SPL) on Solana mainnet. You can bridge USDC from other chains using standard bridges.
-
-## Comparison with Base
-
-Both chains are fully supported. Choose based on preference:
-
-| | Base | Solana |
-|---|---|---|
-| Key format | Hex (0x...) | Base58 |
-| Token | USDC (ERC-20) | USDC (SPL) |
-| Finality | ~2s | ~400ms |
-| Gas fees | Very low | Very low |
+| Property | Base | Solana |
+|----------|------|--------|
+| Key format | `0x...` (hex) | base58 keypair |
+| USDC type | ERC-20 | SPL |
+| Confirmation time | ~2s | ~0.4s |
+| Install command | `pip install jarvisclaw[agent]` | `pip install jarvisclaw[solana]` |

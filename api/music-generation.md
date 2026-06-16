@@ -1,119 +1,159 @@
-# Music Generation
 
-`POST /v1/audio/generations`
+# Music Generation API
 
-Generate original music tracks from text prompts with optional lyrics.
+Generate AI-composed music tracks from text prompts. Supports instrumental and vocal tracks with custom lyrics. Powered by MiniMax Music models.
 
-## Request
+**Base URL:** `https://api.jarvisclaw.ai/v1`
+
+## Endpoints
+
+### POST /v1/audio/generations
+
+Generate a music track from a text prompt.
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| model | string | Yes | Model identifier (e.g. "minimax/music-2.5") |
+| prompt | string | Yes | Description of the music to generate (genre, mood, tempo) |
+| instrumental | boolean | No | Generate instrumental only (no vocals) (default: false) |
+| lyrics | string | No | Custom lyrics for the track (ignored if instrumental is true) |
+| duration_seconds | integer | No | Target duration in seconds (max 180) (default: 180) |
+
+#### Request
 
 ```json
 {
-  "model": "minimax-music-2.5",
-  "prompt": "upbeat electronic dance track with synth leads",
-  "instrumental": false,
-  "lyrics": "[verse]\nLost in the neon glow...",
+  "model": "minimax/music-2.5",
+  "prompt": "Upbeat electronic dance track with synth arpeggios and driving bass",
+  "instrumental": true,
   "duration_seconds": 120
 }
 ```
 
-### Parameters
-
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `model` | string | Yes | Music model ID (`minimax-music-2.5`) |
-| `prompt` | string | Yes | Description of the desired music style, mood, and genre |
-| `instrumental` | boolean | No | Generate instrumental only (no vocals). Default: `false` |
-| `lyrics` | string | No | Song lyrics with structure tags (`[verse]`, `[chorus]`, `[bridge]`) |
-| `duration_seconds` | integer | No | Track duration in seconds (max 180). Default: `60` |
-
-## Pricing
-
-| Item | Cost |
-|------|------|
-| Per track (up to 3 minutes) | $0.1575 |
-
-## Response
+#### Response
 
 ```json
 {
-  "id": "music-gen-abc123",
-  "object": "audio.generation",
-  "created": 1700000000,
   "data": [
     {
-      "url": "https://cdn.jarvisclaw.ai/audio/music-gen-abc123.mp3",
-      "duration_seconds": 120
+      "url": "https://cdn.jarvisclaw.ai/audio/mus_abc123.mp3",
+      "duration_seconds": 118,
+      "lyrics": null
     }
   ]
 }
 ```
 
-## Examples
+## Pricing
+
+| Model | Price | Notes |
+|-------|-------|-------|
+| minimax/music-2.5 | $0.1575/track | Up to ~3 minutes output |
+
+## Code Examples
 
 ::: code-group
-
-```python [Python]
-import requests
-
-resp = requests.post(
-    "https://api.jarvisclaw.ai/v1/audio/generations",
-    headers={
-        "Authorization": "Bearer sk-your-api-key",
-        "Content-Type": "application/json",
-    },
-    json={
-        "model": "minimax-music-2.5",
-        "prompt": "chill lo-fi hip hop beat with jazzy piano and vinyl crackle",
-        "instrumental": True,
-        "duration_seconds": 90,
-    },
-)
-
-data = resp.json()
-print(f"Track URL: {data['data'][0]['url']}")
-```
 
 ```bash [cURL]
 curl -X POST https://api.jarvisclaw.ai/v1/audio/generations \
   -H "Authorization: Bearer sk-your-api-key" \
   -H "Content-Type: application/json" \
   -d '{
-    "model": "minimax-music-2.5",
-    "prompt": "epic orchestral soundtrack with rising strings and dramatic percussion",
+    "model": "minimax/music-2.5",
+    "prompt": "Chill lo-fi hip hop beat with rain sounds",
     "instrumental": true,
-    "duration_seconds": 180
+    "duration_seconds": 120
   }'
 ```
 
+```python [Python (API Key)]
+from jarvisclaw import AudioClient
+
+audio = AudioClient(api_key="sk-your-api-key")
+
+# Smart route (auto-selects best model)
+result = audio.music("Chill lo-fi hip hop beat with rain sounds", instrumental=True)
+print(f"Track URL: {result.url}")
+
+# With explicit model
+result = audio.music("Chill lo-fi hip hop beat with rain sounds",
+    model="minimax/music-2.5", instrumental=True)
+print(f"Track URL: {result.url}")
+```
+
+```python [Python (x402 Agent)]
+from jarvisclaw import AudioClient
+
+# ─── Option A: Base chain (EVM) ───
+# Hex private key → USDC on Base (Chain ID 8453)
+audio = AudioClient(private_key="0x<evm-private-key>")
+
+# ─── Option B: Solana ───
+# Base58 keypair → USDC SPL on Solana mainnet
+# audio = AudioClient(private_key="<solana-bs58-keypair>")
+
+# SDK auto-detects chain from key format — no config needed
+
+# Smart route (auto-selects best model)
+result = audio.music("Chill lo-fi hip hop beat with rain sounds", instrumental=True)
+print(f"Track URL: {result.url}")
+
+# With explicit model
+result = audio.music("Chill lo-fi hip hop beat",
+    model="minimax/music-2.5", instrumental=True)
+print(f"Track URL: {result.url}")
+```
+
+```go [Go (API Key)]
+package main
+
+import (
+    "context"
+    "fmt"
+    jc "github.com/api-jarvisclaw/go-sdk"
+)
+
+func main() {
+    ctx := context.Background()
+    ac, _ := jc.NewAudioClient(jc.WithAPIKey("sk-your-api-key"))
+
+    // Smart route (auto-selects best model)
+    result, _ := ac.Music(ctx, "Chill lo-fi hip hop beat with rain sounds",
+        jc.WithInstrumental(true))
+    fmt.Printf("Track URL: %s\n", result.URL)
+
+    // With explicit model
+    result, _ = ac.Music(ctx, "Chill lo-fi hip hop beat with rain sounds",
+        jc.WithModel("minimax/music-2.5"), jc.WithInstrumental(true))
+    fmt.Printf("Track URL: %s\n", result.URL)
+}
+```
+
+```go [Go (x402 Agent)]
+package main
+
+import (
+    "context"
+    "fmt"
+    jc "github.com/api-jarvisclaw/go-sdk"
+)
+
+func main() {
+    ctx := context.Background()
+
+    // x402 Agent wallet — pays per-call via USDC on Base (Chain ID 8453)
+    ac, _ := jc.NewAudioClient(jc.WithPrivateKey("0x<evm-private-key>"))
+
+    // Smart route (auto-selects best model)
+    result, _ := ac.Music(ctx, "Chill lo-fi hip hop beat with rain sounds",
+        jc.WithInstrumental(true))
+    fmt.Printf("Track URL: %s\n", result.URL)
+
+    // With explicit model
+    result, _ = ac.Music(ctx, "Chill lo-fi hip hop beat",
+        jc.WithModel("minimax/music-2.5"), jc.WithInstrumental(true))
+    fmt.Printf("Track URL: %s\n", result.URL)
+}
+```
+
 :::
-
-## Lyrics Format
-
-Use structure tags to guide song composition:
-
-```
-[intro]
-(instrumental intro)
-
-[verse]
-Walking through the city lights
-Every shadow comes alive
-
-[chorus]
-We are the dreamers tonight
-Reaching for the satellite
-
-[bridge]
-Time slows down, the world fades out
-
-[outro]
-(fade out)
-```
-
-## Notes
-
-- Generation takes 30-90 seconds depending on duration
-- Audio URL expires after 24 hours — download promptly
-- Output format: MP3, 44.1kHz stereo
-- Maximum track duration: 3 minutes (180 seconds)
-- When `lyrics` is provided and `instrumental` is `false`, the model generates vocals matching the lyrics

@@ -1,65 +1,31 @@
-# Models
+# Available Models
 
-JarvisClaw aggregates models from many providers behind a single API. The model catalog is dynamic — models are added and updated regularly.
+## Free Models
 
-## Listing Available Models
+All free models have unlimited usage.
 
-Use the standard `/v1/models` endpoint to get the current list:
+| Model | Price |
+|-------|-------|
+| `nvidia/deepseek-v4-flash` | FREE |
+| `nvidia/deepseek-v4-pro` | FREE |
+| `nvidia/qwen3-coder-480b` | FREE |
+| `nvidia/nemotron-3-nano-omni-30b` | FREE |
+| `nvidia/mistral-small-4-119b` | FREE |
+| `nvidia/llama-4-maverick` | FREE |
 
-::: code-group
+## Paid Models
 
-```python [Python]
-from openai import OpenAI
+Pricing per 1M tokens (input / output):
 
-client = OpenAI(
-    base_url="https://api.jarvisclaw.ai/v1",
-    api_key="sk-your-api-key",
-)
+| Model | Input | Output |
+|-------|-------|--------|
+| `openai/gpt-5.5` | $5 | $30 |
+| `openai/gpt-5.4-nano` | $0.20 | $1.25 |
+| `openai/o3` | $2 | $8 |
+| `anthropic/claude-opus-4.7` | $5 | $25 |
+| `anthropic/claude-sonnet-4.6` | $3 | $15 |
+| `google/gemini-3.1-pro` | $2 | $12 |
+| `google/gemini-2.5-flash` | $0.30 | $2.50 |
+| `deepseek/deepseek-reasoner` | $0.20 | $0.40 |
 
-models = client.models.list()
-for model in models.data:
-    print(model.id)
-```
-
-```bash [cURL]
-curl https://api.jarvisclaw.ai/v1/models \
-  -H "Authorization: Bearer sk-your-api-key"
-```
-
-:::
-
-## Providers
-
-Models are sourced from providers including:
-
-- **OpenAI** — GPT-4o, GPT-4o-mini, o1, o3, DALL-E, Whisper, TTS
-- **Anthropic** — Claude Opus, Sonnet, Haiku
-- **Google** — Gemini Pro, Flash, Ultra
-- **DeepSeek** — DeepSeek-V3, DeepSeek-R1
-- **Meta** — Llama models
-- **Mistral** — Mistral Large, Codestral
-- **Stability AI** — Stable Diffusion, Stable Video
-- **Kling** — Video generation
-- **And more** — new providers added continuously
-
-## Model Types
-
-| Type | Endpoint | Examples |
-|------|----------|----------|
-| Chat/LLM | `/v1/chat/completions` | gpt-4o, claude-sonnet, gemini-pro |
-| Image | `/v1/images/generations` | dall-e-3, stable-diffusion-xl |
-| Video | `/v1/videos/generations` | kling-v2 |
-| Audio TTS | `/v1/audio/speech` | tts-1, tts-1-hd |
-| Audio STT | `/v1/audio/transcriptions` | whisper-1 |
-| Embeddings | `/v1/embeddings` | text-embedding-3-small |
-
-## Smart Router Aliases
-
-Instead of picking a specific model, use routing aliases:
-
-- `auto` — best quality/cost balance
-- `free` — free-tier models only
-- `eco` — cheapest paid option
-- `premium` — highest capability
-
-See [Smart Router](/smart-router) for details.
+Full pricing details at [/pricing](/pricing).

@@ -1,45 +1,23 @@
 # Security
 
-JarvisClaw is designed with defense-in-depth for API gateway security.
+Security is built into every layer of the platform. Below is a summary of the key practices in place.
 
-## API Key Security
+## API keys hashed at rest
 
-- **Hashed storage** — API keys are stored as irreversible hashes. Raw keys are shown once at creation and never stored or logged.
-- **Prefix identification** — Keys use a `sk-` prefix for identification without exposing the secret portion.
-- **Key rotation** — Create new keys and revoke old ones instantly from the dashboard.
+All API keys are stored as SHA-256 hashes. The plaintext key is shown once at creation and never persisted.
 
-## On-Chain Verification (x402)
+## x402 payments verified on-chain
 
-For agent payments, security is cryptographic:
+Every x402 payment is verified against the blockchain via a facilitator contract before the request is processed. No off-chain trust required.
 
-- **Signature verification** — Every x402 payment is verified against the wallet's public key
-- **Facilitator validation** — Payments are verified by the CDP facilitator before requests are processed
-- **Replay protection** — Each payment includes a nonce to prevent double-spend
-- **No custody** — JarvisClaw never holds your private keys
+## Rate limiting at every layer
 
-## Rate Limiting
+Requests are rate-limited per user and per IP address. A global circuit breaker protects upstream providers from cascading failures.
 
-Multiple layers of rate limiting protect against abuse:
+## HD wallet keys shard-encrypted
 
-| Layer | Scope |
-|-------|-------|
-| Per-key RPM | Requests per minute per API key |
-| Per-IP | Limits requests from a single IP address |
-| Daily spending | Caps total spend per account per day |
-| Concurrent | Limits simultaneous in-flight requests |
+HD wallet private keys are encrypted using shard-based key splitting. No single storage location holds a complete key.
 
-Rate-limited requests return HTTP 429 with a `Retry-After` header.
+## All traffic over TLS 1.3
 
-## Encryption
-
-- **TLS 1.2+** — All API traffic is encrypted in transit
-- **Request/response bodies** — Never logged in plaintext
-- **Wallet keys** — Only used client-side for signing; never transmitted to servers
-
-## Best Practices
-
-1. Never commit API keys to source control
-2. Use environment variables for key storage
-3. Set daily spending limits appropriate to your workload
-4. Rotate keys periodically
-5. Use separate keys for development and production
+Every connection is served over HTTPS with TLS 1.3, enforced at the Cloudflare edge. Plain HTTP is not accepted.

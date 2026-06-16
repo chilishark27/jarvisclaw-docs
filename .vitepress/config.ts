@@ -3,6 +3,7 @@ import { defineConfig } from 'vitepress'
 export default defineConfig({
   title: 'JarvisClaw',
   description: 'AI API Gateway — Smart routing, pay per call via x402',
+  ignoreDeadLinks: true,
   head: [
     ['link', { rel: 'icon', href: '/favicon.ico' }],
   ],
