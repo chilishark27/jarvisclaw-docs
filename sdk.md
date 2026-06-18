@@ -69,6 +69,17 @@ JARVISCLAW_PRIVATE_KEY=0x...
 ```
 :::
 
+### Authentication & Chain Support
+
+| Client | API Key | Private Key (x402) | Python 链支持 | Go 链支持 |
+|--------|---------|-------------------|--------------|----------|
+| ChatClient | ✅ | ✅ | Base + Solana | Base only |
+| ImageClient | ✅ | ✅ | Base + Solana | Base only |
+| VideoClient | ✅ | ✅ | Base + Solana | Base only |
+| AudioClient | ✅ | ✅ | Base + Solana | Base only |
+| SearchClient | ✅ | ✅ | Base + Solana | Base only |
+| MarketplaceClient | ❌ | ✅ 仅 private key | Base + Solana | Base only |
+
 ## Chat & Streaming
 
 Send chat messages and stream responses in real time.
@@ -569,6 +580,80 @@ slot, _ := mc.RPCCall(ctx, "sol", "getSlot", []any{})
 
 // ─── DeFi ───
 aave, _ := mc.DefiProtocol(ctx, "aave-v3")
+```
+
+:::
+
+### Marketplace (Async / Concurrent)
+
+::: code-group
+
+```python [Python — asyncio]
+import asyncio
+from jarvisclaw.aio import MarketplaceClient
+
+async def main():
+    async with MarketplaceClient(private_key="0x...") as mp:
+        # 并发调用多个 marketplace 接口
+        polymarket, btc_price, fear_greed = await asyncio.gather(
+            mp.call("prediction", "/polymarket/markets",
+                    params={"market_slug": "will-trump-win"}),
+            mp.call("surf", "/exchange/price",
+                    params={"pair": "BTC-USDT"}),
+            mp.call("surf", "/market/fear-greed"),
+        )
+        print(polymarket, btc_price, fear_greed)
+
+        # 并发 RPC 调用
+        eth_block, sol_slot = await asyncio.gather(
+            mp.rpc_call("eth", "eth_blockNumber"),
+            mp.rpc_call("sol", "getSlot"),
+        )
+        print(f"ETH block: {eth_block}, SOL slot: {sol_slot}")
+
+asyncio.run(main())
+```
+
+```go [Go — goroutines]
+package main
+
+import (
+    "context"
+    "encoding/json"
+    "fmt"
+    "sync"
+
+    jarvisclaw "github.com/api-jarvisclaw/go-sdk"
+)
+
+func main() {
+    ctx := context.Background()
+    mc, _ := jarvisclaw.NewMarketplaceClient(jarvisclaw.WithPrivateKey("0x..."))
+
+    var (
+        polymarket, btcPrice, fearGreed json.RawMessage
+        wg                              sync.WaitGroup
+    )
+
+    wg.Add(3)
+    go func() {
+        defer wg.Done()
+        polymarket, _ = mc.Call(ctx, "prediction", "/polymarket/markets",
+            jarvisclaw.WithParams(map[string]string{"market_slug": "will-trump-win"}))
+    }()
+    go func() {
+        defer wg.Done()
+        btcPrice, _ = mc.Call(ctx, "surf", "/exchange/price",
+            jarvisclaw.WithParams(map[string]string{"pair": "BTC-USDT"}))
+    }()
+    go func() {
+        defer wg.Done()
+        fearGreed, _ = mc.Call(ctx, "surf", "/market/fear-greed")
+    }()
+    wg.Wait()
+
+    fmt.Println(string(polymarket), string(btcPrice), string(fearGreed))
+}
 ```
 
 :::

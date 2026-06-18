@@ -48,12 +48,15 @@ chat = ChatClient(private_key="<key>", network="solana")
 ```
 
 ```go [Go]
+// ⚠️ Coming Soon — Go SDK 暂未支持 Solana，以下为预期 API 预览。
+// 目前 Go 仅支持 Base chain (EVM)。
+
 import jarvisclaw "github.com/api-jarvisclaw/go-sdk"
 
 // EVM wallet — hex private key (0x...) → Base chain
 client, _ := jarvisclaw.NewChatClient(jarvisclaw.WithPrivateKey("0x<evm-private-key>"))
 
-// Solana wallet — bs58-encoded keypair → Solana mainnet
+// Solana wallet — bs58-encoded keypair → Solana mainnet (coming soon)
 // SDK auto-detects chain from key format
 client, _ := jarvisclaw.NewChatClient(jarvisclaw.WithPrivateKey("<base58-solana-keypair>"))
 ```
@@ -87,6 +90,9 @@ print(f"Solana wallet: {chat.address}")
 ```
 
 ```go [Go]
+// ⚠️ Coming Soon — Go SDK 暂未支持 Solana，以下为预期 API 预览。
+// 目前 Go 仅支持 Base chain (EVM)。
+
 package main
 
 import (
