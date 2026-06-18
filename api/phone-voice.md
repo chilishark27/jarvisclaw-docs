@@ -354,46 +354,53 @@ for num in resp.json()["numbers"]:
 ```
 
 ```python [Python (x402 Agent)]
-from jarvisclaw import PhoneClient
+from jarvisclaw import MarketplaceClient
 
 # x402 Agent wallet — pays per-call via USDC
 # Base chain (EVM)
-phone = PhoneClient(private_key="0x<evm-private-key>")
+client = MarketplaceClient(private_key="0x<evm-private-key>")
 
 # Or Solana
-# phone = PhoneClient(private_key="<solana-bs58-keypair>")
+# client = MarketplaceClient(private_key="<solana-bs58-keypair>")
 
 # Initiate an AI voice call
-call = phone.voice_call(
-    to="+14155551234",
-    task="You are an appointment reminder assistant. Confirm the dental appointment for Tuesday at 2 PM.",
-    voice="nova",
-    max_duration=120,
-)
-print(f"Call initiated: {call.call_id}")
+call = client.call("phone", "/voice/call", method="POST", json={
+    "to": "+14155551234",
+    "task": "You are an appointment reminder assistant. Confirm the dental appointment for Tuesday at 2 PM.",
+    "voice": "nova",
+    "max_duration": 120,
+})
+print(f"Call initiated: {call['call_id']}")
 
 # Get transcript
-transcript = phone.get_call(call.call_id)
-print(f"Status: {transcript.status}, Duration: {transcript.duration_seconds}s")
-for turn in transcript.transcript:
+transcript = client.call("phone", f"/voice/call/{call['call_id']}")
+print(f"Status: {transcript['status']}, Duration: {transcript['duration_seconds']}s")
+for turn in transcript["transcript"]:
     print(f"  {turn['role']}: {turn['content']}")
 
 # Carrier lookup
-info = phone.lookup("+14155551234")
-print(f"Carrier: {info.carrier}, Type: {info.line_type}")
+info = client.call("phone", "/lookup", method="POST", json={
+    "phoneNumber": "+14155551234",
+})
+print(f"Carrier: {info['carrier']}, Type: {info['line_type']}")
 
 # Fraud risk assessment
-risk = phone.lookup_fraud("+14155551234")
-print(f"Risk: {risk.risk_level} (score: {risk.risk_score})")
+risk = client.call("phone", "/lookup/fraud", method="POST", json={
+    "phoneNumber": "+14155551234",
+})
+print(f"Risk: {risk['risk_level']} (score: {risk['risk_score']})")
 
 # Buy a number
-number = phone.buy_number(country="US", area_code="415")
-print(f"Leased: {number.number}")
+number = client.call("phone", "/numbers/buy", method="POST", json={
+    "country": "US",
+    "area_code": "415",
+})
+print(f"Leased: {number['number']}")
 
 # List owned numbers
-numbers = phone.list_numbers()
-for num in numbers:
-    print(f"  {num.number} — expires {num.expires_at}")
+numbers = client.call("phone", "/numbers/list", method="POST", json={})
+for num in numbers["numbers"]:
+    print(f"  {num['number']} — expires {num['expires_at']}")
 ```
 
 ```go [Go (API Key)]
@@ -407,44 +414,43 @@ import (
 
 func main() {
     ctx := context.Background()
-    phone, _ := jc.NewPhoneClient(jc.WithAPIKey("sk-your-api-key"))
+    mc, _ := jc.NewMarketplaceClient(jc.WithAPIKey("sk-your-api-key"))
 
     // Initiate an AI voice call
-    call, _ := phone.VoiceCall(ctx, &jc.VoiceCallRequest{
-        To:          "+14155551234",
-        Task:        "You are an appointment reminder. Confirm dental appointment Tuesday at 2 PM.",
-        Voice:       "nova",
-        MaxDuration: 120,
+    call, _ := mc.Post(ctx, "phone", "/voice/call", map[string]interface{}{
+        "to":           "+14155551234",
+        "task":         "You are an appointment reminder. Confirm dental appointment Tuesday at 2 PM.",
+        "voice":        "nova",
+        "max_duration": 120,
     })
-    fmt.Printf("Call initiated: %s\n", call.CallID)
+    fmt.Printf("Call initiated: %s\n", call["call_id"])
 
     // Get transcript
-    transcript, _ := phone.GetCall(ctx, call.CallID)
-    fmt.Printf("Status: %s, Duration: %ds\n", transcript.Status, transcript.DurationSeconds)
-    for _, turn := range transcript.Transcript {
-        fmt.Printf("  %s: %s\n", turn.Role, turn.Content)
-    }
+    transcript, _ := mc.Call(ctx, "phone", fmt.Sprintf("/voice/call/%s", call["call_id"]))
+    fmt.Printf("Status: %s, Duration: %v\n", transcript["status"], transcript["duration_seconds"])
 
     // Carrier lookup
-    info, _ := phone.Lookup(ctx, "+14155551234")
-    fmt.Printf("Carrier: %s, Type: %s\n", info.Carrier, info.LineType)
+    info, _ := mc.Post(ctx, "phone", "/lookup", map[string]interface{}{
+        "phoneNumber": "+14155551234",
+    })
+    fmt.Printf("Carrier: %s, Type: %s\n", info["carrier"], info["line_type"])
 
     // Fraud risk assessment
-    risk, _ := phone.LookupFraud(ctx, "+14155551234")
-    fmt.Printf("Risk: %s (score: %d)\n", risk.RiskLevel, risk.RiskScore)
+    risk, _ := mc.Post(ctx, "phone", "/lookup/fraud", map[string]interface{}{
+        "phoneNumber": "+14155551234",
+    })
+    fmt.Printf("Risk: %s (score: %v)\n", risk["risk_level"], risk["risk_score"])
 
     // Buy a number
-    number, _ := phone.BuyNumber(ctx, &jc.BuyNumberRequest{
-        Country:  "US",
-        AreaCode: "415",
+    number, _ := mc.Post(ctx, "phone", "/numbers/buy", map[string]interface{}{
+        "country":   "US",
+        "area_code": "415",
     })
-    fmt.Printf("Leased: %s\n", number.Number)
+    fmt.Printf("Leased: %s\n", number["number"])
 
     // List owned numbers
-    numbers, _ := phone.ListNumbers(ctx)
-    for _, num := range numbers {
-        fmt.Printf("  %s — expires %s\n", num.Number, num.ExpiresAt)
-    }
+    numbers, _ := mc.Post(ctx, "phone", "/numbers/list", map[string]interface{}{})
+    fmt.Printf("Numbers: %v\n", numbers["numbers"])
 }
 ```
 
@@ -461,35 +467,39 @@ func main() {
     ctx := context.Background()
 
     // x402 Agent wallet — pays per-call via USDC on Base
-    phone, _ := jc.NewPhoneClient(jc.WithPrivateKey("0x<evm-private-key>"))
+    mc, _ := jc.NewMarketplaceClient(jc.WithPrivateKey("0x<evm-private-key>"))
 
     // Initiate an AI voice call
-    call, _ := phone.VoiceCall(ctx, &jc.VoiceCallRequest{
-        To:          "+14155551234",
-        Task:        "You are an appointment reminder. Confirm dental appointment Tuesday at 2 PM.",
-        Voice:       "nova",
-        MaxDuration: 120,
+    call, _ := mc.Post(ctx, "phone", "/voice/call", map[string]interface{}{
+        "to":           "+14155551234",
+        "task":         "You are an appointment reminder. Confirm dental appointment Tuesday at 2 PM.",
+        "voice":        "nova",
+        "max_duration": 120,
     })
-    fmt.Printf("Call initiated: %s\n", call.CallID)
+    fmt.Printf("Call initiated: %s\n", call["call_id"])
 
     // Get transcript
-    transcript, _ := phone.GetCall(ctx, call.CallID)
-    fmt.Printf("Status: %s, Duration: %ds\n", transcript.Status, transcript.DurationSeconds)
+    transcript, _ := mc.Call(ctx, "phone", fmt.Sprintf("/voice/call/%s", call["call_id"]))
+    fmt.Printf("Status: %s, Duration: %v\n", transcript["status"], transcript["duration_seconds"])
 
     // Carrier lookup
-    info, _ := phone.Lookup(ctx, "+14155551234")
-    fmt.Printf("Carrier: %s, Type: %s\n", info.Carrier, info.LineType)
+    info, _ := mc.Post(ctx, "phone", "/lookup", map[string]interface{}{
+        "phoneNumber": "+14155551234",
+    })
+    fmt.Printf("Carrier: %s, Type: %s\n", info["carrier"], info["line_type"])
 
     // Fraud risk assessment
-    risk, _ := phone.LookupFraud(ctx, "+14155551234")
-    fmt.Printf("Risk: %s (score: %d)\n", risk.RiskLevel, risk.RiskScore)
+    risk, _ := mc.Post(ctx, "phone", "/lookup/fraud", map[string]interface{}{
+        "phoneNumber": "+14155551234",
+    })
+    fmt.Printf("Risk: %s (score: %v)\n", risk["risk_level"], risk["risk_score"])
 
     // Buy a number
-    number, _ := phone.BuyNumber(ctx, &jc.BuyNumberRequest{
-        Country:  "US",
-        AreaCode: "415",
+    number, _ := mc.Post(ctx, "phone", "/numbers/buy", map[string]interface{}{
+        "country":   "US",
+        "area_code": "415",
     })
-    fmt.Printf("Leased: %s\n", number.Number)
+    fmt.Printf("Leased: %s\n", number["number"])
 }
 ```
 

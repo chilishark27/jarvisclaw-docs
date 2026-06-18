@@ -287,16 +287,16 @@ while True:
 ```
 
 ```python [Python (x402 Agent)]
-from jarvisclaw import Client
+from jarvisclaw import MarketplaceClient
 
 # x402 agent — pays with USDC automatically (DEX endpoints are free anyway)
-client = Client(private_key="0x<agent-wallet-private-key>")
+client = MarketplaceClient(private_key="0x<agent-wallet-private-key>")
 
 USDC_BASE = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
 WETH_BASE = "0x4200000000000000000000000000000000000006"
 
 # Get price (free — no payment triggered)
-price = client.get("/v1/marketplace/dex/price", params={
+price = client.call("dex", "/price", params={
     "chainId": 8453,
     "sellToken": USDC_BASE,
     "buyToken": WETH_BASE,
@@ -305,7 +305,7 @@ price = client.get("/v1/marketplace/dex/price", params={
 print(f"Price: {price['buyAmount']} wei for 1000 USDC")
 
 # Get firm quote
-quote = client.get("/v1/marketplace/dex/quote", params={
+quote = client.call("dex", "/quote", params={
     "chainId": 8453,
     "sellToken": USDC_BASE,
     "buyToken": WETH_BASE,
@@ -314,14 +314,14 @@ quote = client.get("/v1/marketplace/dex/quote", params={
 })
 
 # Submit gasless (after signing permit2 externally)
-result = client.post("/v1/marketplace/dex/gasless/submit", json={
+result = client.call("dex", "/gasless/submit", method="POST", json={
     "trade": quote,
     "signature": "0x<signed-permit2>",
 })
 print(f"Trade hash: {result['tradeHash']}")
 
 # Poll status
-status = client.get(f"/v1/marketplace/dex/gasless/status/{result['tradeHash']}")
+status = client.call("dex", f"/gasless/status/{result['tradeHash']}")
 print(f"Status: {status['status']}")
 ```
 
@@ -329,6 +329,7 @@ print(f"Status: {status['status']}")
 package main
 
 import (
+    "context"
     "fmt"
     "time"
 
@@ -336,37 +337,32 @@ import (
 )
 
 func main() {
-    client := jarvisclaw.NewClient(jarvisclaw.WithAPIKey("sk-your-api-key"))
+    mc := jarvisclaw.NewMarketplaceClient(jarvisclaw.WithAPIKey("sk-your-api-key"))
+    ctx := context.Background()
 
     usdcBase := "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
     wethBase := "0x4200000000000000000000000000000000000006"
 
     // 1. Get indicative price
-    var price struct {
-        BuyAmount    string `json:"buyAmount"`
-        SellAmount   string `json:"sellAmount"`
-        EstimatedGas string `json:"estimatedGas"`
-    }
-    err := client.GetJSON("/v1/marketplace/dex/price", map[string]string{
+    price, err := mc.Call(ctx, "dex", "/price", jarvisclaw.WithParams(map[string]string{
         "chainId":    "8453",
         "sellToken":  usdcBase,
         "buyToken":   wethBase,
         "sellAmount": "1000000000",
-    }, &price)
+    }))
     if err != nil {
         panic(err)
     }
-    fmt.Printf("Buy amount: %s wei\n", price.BuyAmount)
+    fmt.Printf("Buy amount: %s wei\n", price["buyAmount"])
 
     // 2. Get firm quote
-    var quote map[string]interface{}
-    err = client.GetJSON("/v1/marketplace/dex/quote", map[string]string{
+    quote, err := mc.Call(ctx, "dex", "/quote", jarvisclaw.WithParams(map[string]string{
         "chainId":      "8453",
         "sellToken":    usdcBase,
         "buyToken":     wethBase,
         "sellAmount":   "1000000000",
         "takerAddress": "0xYourWalletAddress",
-    }, &quote)
+    }))
     if err != nil {
         panic(err)
     }
@@ -374,31 +370,23 @@ func main() {
     // 3. Sign permit2 EIP-712 data and submit gasless swap
     // signature := signEIP712(quote["permit2"], privateKey)
 
-    var submit struct {
-        TradeHash string `json:"tradeHash"`
-        Status    string `json:"status"`
-    }
-    err = client.PostJSON("/v1/marketplace/dex/gasless/submit", map[string]interface{}{
+    submit, err := mc.Post(ctx, "dex", "/gasless/submit", map[string]interface{}{
         "trade":     quote,
         "signature": "0x<your-eip712-signature>",
-    }, &submit)
+    })
     if err != nil {
         panic(err)
     }
-    fmt.Printf("Trade hash: %s\n", submit.TradeHash)
+    tradeHash := submit["tradeHash"].(string)
+    fmt.Printf("Trade hash: %s\n", tradeHash)
 
     // 4. Poll status
     for {
-        var status struct {
-            Status string `json:"status"`
-            TxHash string `json:"txHash"`
-        }
-        _ = client.GetJSON(
-            fmt.Sprintf("/v1/marketplace/dex/gasless/status/%s", submit.TradeHash),
-            nil, &status,
+        status, _ := mc.Call(ctx, "dex",
+            fmt.Sprintf("/gasless/status/%s", tradeHash),
         )
-        if status.Status == "confirmed" {
-            fmt.Printf("Confirmed! TX: %s\n", status.TxHash)
+        if status["status"] == "confirmed" {
+            fmt.Printf("Confirmed! TX: %s\n", status["txHash"])
             break
         }
         time.Sleep(2 * time.Second)
@@ -410,6 +398,7 @@ func main() {
 package main
 
 import (
+    "context"
     "fmt"
 
     jarvisclaw "github.com/api-jarvisclaw/go-sdk"
@@ -417,48 +406,38 @@ import (
 
 func main() {
     // x402 agent — DEX endpoints are free, but x402 auth still works
-    client, err := jarvisclaw.NewClient(
+    mc := jarvisclaw.NewMarketplaceClient(
         jarvisclaw.WithPrivateKey("0x<agent-wallet-private-key>"),
     )
-    if err != nil {
-        panic(err)
-    }
+    ctx := context.Background()
 
     usdcBase := "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
     wethBase := "0x4200000000000000000000000000000000000006"
 
     // Get price
-    var price struct {
-        BuyAmount string `json:"buyAmount"`
-        Price     string `json:"price"`
-    }
-    _ = client.GetJSON("/v1/marketplace/dex/price", map[string]string{
+    price, _ := mc.Call(ctx, "dex", "/price", jarvisclaw.WithParams(map[string]string{
         "chainId":    "8453",
         "sellToken":  usdcBase,
         "buyToken":   wethBase,
         "sellAmount": "1000000000",
-    }, &price)
-    fmt.Printf("1000 USDC -> %s wei WETH\n", price.BuyAmount)
+    }))
+    fmt.Printf("1000 USDC -> %s wei WETH\n", price["buyAmount"])
 
     // Get quote
-    var quote map[string]interface{}
-    _ = client.GetJSON("/v1/marketplace/dex/quote", map[string]string{
+    quote, _ := mc.Call(ctx, "dex", "/quote", jarvisclaw.WithParams(map[string]string{
         "chainId":      "8453",
         "sellToken":    usdcBase,
         "buyToken":     wethBase,
         "sellAmount":   "1000000000",
         "takerAddress": "0xYourWalletAddress",
-    }, &quote)
+    }))
 
     // Sign + submit gasless swap
-    var result struct {
-        TradeHash string `json:"tradeHash"`
-    }
-    _ = client.PostJSON("/v1/marketplace/dex/gasless/submit", map[string]interface{}{
+    result, _ := mc.Post(ctx, "dex", "/gasless/submit", map[string]interface{}{
         "trade":     quote,
         "signature": "0x<signed-permit2>",
-    }, &result)
-    fmt.Printf("Submitted: %s\n", result.TradeHash)
+    })
+    fmt.Printf("Submitted: %s\n", result["tradeHash"])
 }
 ```
 

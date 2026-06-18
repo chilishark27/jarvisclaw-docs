@@ -2,11 +2,16 @@
 
 Enroll real people (with liveness verification) or synthetic characters for consistent identity in AI-generated videos. Creates a reusable `ta_xxx` asset_id for Seedance 2.0 video generation.
 
-## Base URL
+**Base URL:** `https://api.jarvisclaw.ai/v1/marketplace/realface`
 
-```
-https://api.jarvisclaw.ai/v1/marketplace/realface
-```
+## Authentication
+
+Both methods are supported (server uses X402OrTokenAuth middleware):
+
+| Method | Header | Description |
+|--------|--------|-------------|
+| API Key | `Authorization: Bearer sk-...` | Standard API key authentication |
+| Private Key (x402) | Automatic via SDK | Agent wallet pays per-call with USDC |
 
 ## Endpoints
 
@@ -19,9 +24,9 @@ https://api.jarvisclaw.ai/v1/marketplace/realface
 
 ## How It Works
 
-1. **Init** — Create a liveness session, receive a QR code link
-2. **User scans QR** — Completes nod + blink challenge on phone camera (120s expiry)
-3. **Poll status** — Wait for liveness verification to complete
+1. **Init** — Create a liveness session, receive an H5 link
+2. **User scans link** — Completes nod + blink challenge on phone camera (120s expiry)
+3. **Poll status** — Wait for liveness verification to complete (`pending_validation` -> `active`)
 4. **Enroll** — Submit face image + completed session to get a reusable `asset_id`
 5. **Generate video** — Pass `asset_id` to Seedance 2.0 / 2.0-fast for identity-consistent output
 
@@ -33,7 +38,7 @@ For virtual characters (illustrations, avatars, 3D renders), skip steps 1-3 and 
 
 `POST /v1/marketplace/realface/init`
 
-Start a phone-based liveness verification session. Returns a QR code URL that the subject scans to complete the challenge.
+Start a phone-based liveness verification session. Returns an H5 link that the subject scans as a QR code to complete the challenge.
 
 ### Request
 
@@ -48,24 +53,27 @@ Start a phone-based liveness verification session. Returns a QR code URL that th
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | `name` | string | Yes | Display name for the enrolled identity |
-| `redirect_url` | string | No | URL to redirect user after liveness completion |
-| `webhook_url` | string | No | URL for server-to-server completion callback |
 
 ### Response
 
 ```json
 {
-  "group_id": "grp_a1b2c3d4",
-  "name": "John Doe",
-  "verification_url": "https://verify.jarvisclaw.ai/liveness/grp_a1b2c3d4",
-  "qr_code_url": "https://verify.jarvisclaw.ai/qr/grp_a1b2c3d4.png",
-  "expires_at": "2025-06-01T12:02:00Z",
-  "status": "pending"
+  "object": "realface.init",
+  "group_id": "legacy_rf_15458",
+  "h5_link": "https://kyc.byteintl.com/?accessKeyId=...&configId=...&bytedToken=...",
+  "status": "pending_validation",
+  "expires_in_seconds": 120,
+  "next_steps": {
+    "1": "Have the real person scan h5_link as a QR code on their phone.",
+    "2": "They complete a brief liveness check (nod + blink, ~1 minute).",
+    "3": "Poll GET /api/v1/realface/status?groupId=… until status === 'active'.",
+    "4": "Call POST /api/v1/realface/enroll with x402 payment to upload the face photo and finalize."
+  }
 }
 ```
 
-::: warning QR Link Expiry
-The verification URL expires after **120 seconds**. If the user doesn't complete the challenge in time, call `/init` again.
+::: warning H5 Link Expiry
+The H5 link expires after **120 seconds** (`expires_in_seconds`). If the user doesn't complete the challenge in time, call `/init` again.
 :::
 
 ---
@@ -86,14 +94,13 @@ Check whether the user has completed the liveness challenge.
 
 ```json
 {
-  "group_id": "grp_a1b2c3d4",
-  "name": "John Doe",
-  "status": "completed",
-  "liveness_score": 0.98
+  "object": "realface.status",
+  "group_id": "legacy_rf_15458",
+  "status": "active"
 }
 ```
 
-Status values: `pending`, `in_progress`, `completed`, `expired`, `failed`
+Status values: `pending_validation`, `active`, `expired`, `failed`
 
 ---
 
@@ -101,7 +108,7 @@ Status values: `pending`, `in_progress`, `completed`, `expired`, `failed`
 
 `POST /v1/marketplace/realface/enroll`
 
-After liveness is completed, submit a reference photo to finalize enrollment. The photo must match the person who completed the liveness challenge.
+After liveness status becomes `active`, submit a reference photo to finalize enrollment. The photo must match the person who completed the liveness challenge.
 
 ### Request
 
@@ -109,7 +116,7 @@ After liveness is completed, submit a reference photo to finalize enrollment. Th
 {
   "name": "John Doe",
   "image_url": "https://example.com/john-reference.jpg",
-  "group_id": "grp_a1b2c3d4"
+  "group_id": "legacy_rf_15458"
 }
 ```
 
@@ -125,11 +132,10 @@ After liveness is completed, submit a reference photo to finalize enrollment. Th
 
 ```json
 {
+  "object": "realface.enroll",
   "asset_id": "ta_rf_xyz789",
   "name": "John Doe",
-  "group_id": "grp_a1b2c3d4",
-  "liveness_verified": true,
-  "created_at": "2025-06-01T12:05:00Z"
+  "group_id": "legacy_rf_15458"
 }
 ```
 
@@ -161,16 +167,15 @@ Enroll a virtual character (illustration, avatar, 3D render, AI-generated face) 
 
 ```json
 {
+  "object": "portrait.enroll",
   "asset_id": "ta_pt_def456",
-  "name": "Cyber Knight",
-  "liveness_verified": false,
-  "created_at": "2025-06-01T12:05:00Z"
+  "name": "Cyber Knight"
 }
 ```
 
 ---
 
-## Examples
+## Code Examples
 
 ::: code-group
 
@@ -181,8 +186,8 @@ curl -X POST https://api.jarvisclaw.ai/v1/marketplace/realface/init \
   -H "Content-Type: application/json" \
   -d '{"name": "John Doe"}'
 
-# 2. Poll status
-curl "https://api.jarvisclaw.ai/v1/marketplace/realface/status?groupId=grp_a1b2c3d4" \
+# 2. Poll status (replace group_id with value from init response)
+curl "https://api.jarvisclaw.ai/v1/marketplace/realface/status?groupId=legacy_rf_15458" \
   -H "Authorization: Bearer sk-your-api-key"
 
 # 3. Enroll verified face
@@ -192,7 +197,7 @@ curl -X POST https://api.jarvisclaw.ai/v1/marketplace/realface/enroll \
   -d '{
     "name": "John Doe",
     "image_url": "https://example.com/john-photo.jpg",
-    "group_id": "grp_a1b2c3d4"
+    "group_id": "legacy_rf_15458"
   }'
 
 # Virtual portrait (no liveness needed)
@@ -206,156 +211,197 @@ curl -X POST https://api.jarvisclaw.ai/v1/marketplace/portrait/enroll \
 ```
 
 ```python [Python (API Key)]
-import requests
+from jarvisclaw import MarketplaceClient
 import time
 
-BASE_RF = "https://api.jarvisclaw.ai/v1/marketplace/realface"
-BASE_PT = "https://api.jarvisclaw.ai/v1/marketplace/portrait"
-HEADERS = {
-    "Authorization": "Bearer sk-your-api-key",
-    "Content-Type": "application/json",
-}
+client = MarketplaceClient(api_key="sk-your-api-key")
 
 # --- RealFace Flow ---
 
 # 1. Initialize liveness session
-resp = requests.post(f"{BASE_RF}/init", headers=HEADERS, json={
+session = client.call("realface", "/init", method="POST", json={
     "name": "John Doe",
 })
-session = resp.json()
-print(f"QR Code: {session['qr_code_url']}")
-print(f"Expires: {session['expires_at']}")
+print(f"H5 Link (show as QR): {session['h5_link']}")
+print(f"Expires in: {session['expires_in_seconds']}s")
 
-# 2. Poll until completed (120s max)
+# 2. Poll until active (120s max)
 group_id = session["group_id"]
 while True:
-    resp = requests.get(f"{BASE_RF}/status", headers=HEADERS, params={
+    status = client.call("realface", "/status", params={
         "groupId": group_id,
     })
-    status = resp.json()
-    if status["status"] == "completed":
-        print(f"Liveness verified (score: {status['liveness_score']})")
+    if status["status"] == "active":
+        print("Liveness verified!")
         break
     elif status["status"] in ("expired", "failed"):
         raise Exception(f"Liveness failed: {status['status']}")
     time.sleep(3)
 
 # 3. Enroll face
-resp = requests.post(f"{BASE_RF}/enroll", headers=HEADERS, json={
+asset = client.call("realface", "/enroll", method="POST", json={
     "name": "John Doe",
     "image_url": "https://example.com/john-photo.jpg",
     "group_id": group_id,
 })
-asset = resp.json()
 print(f"Asset ID for Seedance 2.0: {asset['asset_id']}")
 
 # --- Virtual Portrait (skip liveness) ---
 
-resp = requests.post(f"{BASE_PT}/enroll", headers=HEADERS, json={
+portrait = client.call("portrait", "/enroll", method="POST", json={
     "name": "Cyber Knight",
     "image_url": "https://example.com/character.png",
 })
-print(f"Portrait asset: {resp.json()['asset_id']}")
+print(f"Portrait asset: {portrait['asset_id']}")
 ```
 
 ```python [Python (x402 Agent)]
-from jarvisclaw import Client
+from jarvisclaw import MarketplaceClient
+import time
 
 # x402 agent — pays per call with USDC, no API key needed
-client = Client(private_key="0x<agent-wallet-private-key>")
+client = MarketplaceClient(private_key="0x<agent-wallet-private-key>")
 
 # 1. Initialize liveness session
-session = client.post("/v1/marketplace/realface/init", json={
+session = client.call("realface", "/init", method="POST", json={
     "name": "John Doe",
 })
-print(f"QR Code: {session['qr_code_url']}")
+print(f"H5 Link (show as QR): {session['h5_link']}")
 
 # 2. Poll status
-import time
+group_id = session["group_id"]
 while True:
-    status = client.get("/v1/marketplace/realface/status", params={
-        "groupId": session["group_id"],
+    status = client.call("realface", "/status", params={
+        "groupId": group_id,
     })
-    if status["status"] == "completed":
+    if status["status"] == "active":
         break
+    elif status["status"] in ("expired", "failed"):
+        raise Exception(f"Liveness failed: {status['status']}")
     time.sleep(3)
 
 # 3. Enroll
-asset = client.post("/v1/marketplace/realface/enroll", json={
+asset = client.call("realface", "/enroll", method="POST", json={
     "name": "John Doe",
     "image_url": "https://example.com/john-photo.jpg",
-    "group_id": session["group_id"],
+    "group_id": group_id,
 })
 print(f"Asset ID: {asset['asset_id']}")
 
 # Virtual portrait
-portrait = client.post("/v1/marketplace/portrait/enroll", json={
+portrait = client.call("portrait", "/enroll", method="POST", json={
     "name": "Cyber Knight",
     "image_url": "https://example.com/character.png",
 })
 print(f"Portrait: {portrait['asset_id']}")
 ```
 
+```python [Python (Async)]
+from jarvisclaw.aio import MarketplaceClient
+import asyncio
+
+async def main():
+    client = MarketplaceClient(api_key="sk-your-api-key")
+
+    # 1. Initialize liveness session
+    session = await client.call("realface", "/init", method="POST", json={
+        "name": "John Doe",
+    })
+    print(f"H5 Link: {session['h5_link']}")
+
+    # 2. Poll until active
+    group_id = session["group_id"]
+    while True:
+        status = await client.call("realface", "/status", params={
+            "groupId": group_id,
+        })
+        if status["status"] == "active":
+            break
+        elif status["status"] in ("expired", "failed"):
+            raise Exception(f"Liveness failed: {status['status']}")
+        await asyncio.sleep(3)
+
+    # 3. Enroll
+    asset = await client.call("realface", "/enroll", method="POST", json={
+        "name": "John Doe",
+        "image_url": "https://example.com/john-photo.jpg",
+        "group_id": group_id,
+    })
+    print(f"Asset ID: {asset['asset_id']}")
+
+asyncio.run(main())
+```
+
 ```go [Go (API Key)]
 package main
 
 import (
-    "fmt"
-    "time"
+	"context"
+	"encoding/json"
+	"fmt"
+	"time"
 
-    jarvisclaw "github.com/api-jarvisclaw/go-sdk"
+	jarvisclaw "github.com/api-jarvisclaw/go-sdk"
 )
 
 func main() {
-    client := jarvisclaw.NewClient(jarvisclaw.WithAPIKey("sk-your-api-key"))
+	ctx := context.Background()
+	mc := jarvisclaw.NewMarketplaceClient(jarvisclaw.WithAPIKey("sk-your-api-key"))
 
-    // 1. Initialize liveness session
-    var session struct {
-        GroupID         string `json:"group_id"`
-        QRCodeURL       string `json:"qr_code_url"`
-        VerificationURL string `json:"verification_url"`
-        ExpiresAt       string `json:"expires_at"`
-    }
-    err := client.PostJSON("/v1/marketplace/realface/init", map[string]string{
-        "name": "John Doe",
-    }, &session)
-    if err != nil {
-        panic(err)
-    }
-    fmt.Printf("QR Code: %s\n", session.QRCodeURL)
+	// 1. Initialize liveness session
+	initResp, err := mc.Post(ctx, "realface", "/init", map[string]string{
+		"name": "John Doe",
+	})
+	if err != nil {
+		panic(err)
+	}
 
-    // 2. Poll until completed
-    for {
-        var status struct {
-            Status        string  `json:"status"`
-            LivenessScore float64 `json:"liveness_score"`
-        }
-        err = client.GetJSON("/v1/marketplace/realface/status", map[string]string{
-            "groupId": session.GroupID,
-        }, &status)
-        if err != nil {
-            panic(err)
-        }
-        if status.Status == "completed" {
-            fmt.Printf("Liveness score: %.2f\n", status.LivenessScore)
-            break
-        }
-        time.Sleep(3 * time.Second)
-    }
+	var session struct {
+		GroupID          string `json:"group_id"`
+		H5Link           string `json:"h5_link"`
+		Status           string `json:"status"`
+		ExpiresInSeconds int    `json:"expires_in_seconds"`
+	}
+	json.Unmarshal(initResp, &session)
+	fmt.Printf("H5 Link (show as QR): %s\n", session.H5Link)
 
-    // 3. Enroll face
-    var asset struct {
-        AssetID string `json:"asset_id"`
-    }
-    err = client.PostJSON("/v1/marketplace/realface/enroll", map[string]string{
-        "name":      "John Doe",
-        "image_url": "https://example.com/john-photo.jpg",
-        "group_id":  session.GroupID,
-    }, &asset)
-    if err != nil {
-        panic(err)
-    }
-    fmt.Printf("Asset ID: %s\n", asset.AssetID)
+	// 2. Poll until active
+	for {
+		statusResp, err := mc.Call(ctx, "realface", "/status",
+			jarvisclaw.WithParams(map[string]string{
+				"groupId": session.GroupID,
+			}))
+		if err != nil {
+			panic(err)
+		}
+		var s struct {
+			Status string `json:"status"`
+		}
+		json.Unmarshal(statusResp, &s)
+		if s.Status == "active" {
+			fmt.Println("Liveness verified!")
+			break
+		}
+		if s.Status == "expired" || s.Status == "failed" {
+			panic("liveness failed: " + s.Status)
+		}
+		time.Sleep(3 * time.Second)
+	}
+
+	// 3. Enroll face
+	enrollResp, err := mc.Post(ctx, "realface", "/enroll", map[string]string{
+		"name":      "John Doe",
+		"image_url": "https://example.com/john-photo.jpg",
+		"group_id":  session.GroupID,
+	})
+	if err != nil {
+		panic(err)
+	}
+	var asset struct {
+		AssetID string `json:"asset_id"`
+	}
+	json.Unmarshal(enrollResp, &asset)
+	fmt.Printf("Asset ID: %s\n", asset.AssetID)
 }
 ```
 
@@ -363,55 +409,60 @@ func main() {
 package main
 
 import (
-    "fmt"
-    "time"
+	"context"
+	"encoding/json"
+	"fmt"
+	"time"
 
-    jarvisclaw "github.com/api-jarvisclaw/go-sdk"
+	jarvisclaw "github.com/api-jarvisclaw/go-sdk"
 )
 
 func main() {
-    // x402 agent — pays per call with USDC, no API key needed
-    client, err := jarvisclaw.NewClient(
-        jarvisclaw.WithPrivateKey("0x<agent-wallet-private-key>"),
-    )
-    if err != nil {
-        panic(err)
-    }
+	ctx := context.Background()
 
-    // 1. Initialize liveness session
-    var session struct {
-        GroupID   string `json:"group_id"`
-        QRCodeURL string `json:"qr_code_url"`
-    }
-    _ = client.PostJSON("/v1/marketplace/realface/init", map[string]string{
-        "name": "John Doe",
-    }, &session)
-    fmt.Printf("QR: %s\n", session.QRCodeURL)
+	// x402 agent — pays per call with USDC, no API key needed
+	mc := jarvisclaw.NewMarketplaceClient(
+		jarvisclaw.WithPrivateKey("0x<agent-wallet-private-key>"),
+	)
 
-    // 2. Poll status
-    for {
-        var status struct {
-            Status string `json:"status"`
-        }
-        _ = client.GetJSON("/v1/marketplace/realface/status", map[string]string{
-            "groupId": session.GroupID,
-        }, &status)
-        if status.Status == "completed" {
-            break
-        }
-        time.Sleep(3 * time.Second)
-    }
+	// 1. Initialize liveness session
+	initResp, _ := mc.Post(ctx, "realface", "/init", map[string]string{
+		"name": "John Doe",
+	})
+	var session struct {
+		GroupID string `json:"group_id"`
+		H5Link  string `json:"h5_link"`
+	}
+	json.Unmarshal(initResp, &session)
+	fmt.Printf("H5 Link: %s\n", session.H5Link)
 
-    // 3. Enroll
-    var asset struct {
-        AssetID string `json:"asset_id"`
-    }
-    _ = client.PostJSON("/v1/marketplace/realface/enroll", map[string]string{
-        "name":      "John Doe",
-        "image_url": "https://example.com/john-photo.jpg",
-        "group_id":  session.GroupID,
-    }, &asset)
-    fmt.Printf("Asset ID: %s\n", asset.AssetID)
+	// 2. Poll status
+	for {
+		statusResp, _ := mc.Call(ctx, "realface", "/status",
+			jarvisclaw.WithParams(map[string]string{
+				"groupId": session.GroupID,
+			}))
+		var s struct {
+			Status string `json:"status"`
+		}
+		json.Unmarshal(statusResp, &s)
+		if s.Status == "active" {
+			break
+		}
+		time.Sleep(3 * time.Second)
+	}
+
+	// 3. Enroll
+	enrollResp, _ := mc.Post(ctx, "realface", "/enroll", map[string]string{
+		"name":      "John Doe",
+		"image_url": "https://example.com/john-photo.jpg",
+		"group_id":  session.GroupID,
+	})
+	var asset struct {
+		AssetID string `json:"asset_id"`
+	}
+	json.Unmarshal(enrollResp, &asset)
+	fmt.Printf("Asset ID: %s\n", asset.AssetID)
 }
 ```
 
@@ -435,7 +486,7 @@ func main() {
 ## Limitations
 
 - **Seedance only** — Asset IDs only work with Seedance 2.0 and Seedance 2.0-fast models
-- **120s QR expiry** — Verification link expires quickly; user must scan and complete promptly
+- **120s H5 link expiry** — Verification link expires quickly; user must scan and complete promptly
 - **Public HTTPS only** — `image_url` must be a publicly accessible HTTPS URL (no localhost, no HTTP)
 - **No celebrity enrollment** — Cannot enroll public figures without their active participation in the liveness challenge
 - **No deletion** — Once enrolled, asset IDs are permanent and cannot be revoked

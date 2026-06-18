@@ -169,7 +169,7 @@ func main() {
 
     // With explicit model
     img, _ = ic.Generate(ctx, "A futuristic cityscape at sunset",
-        jc.WithModel("openai/gpt-image-1"), jc.WithSize("1024x1024"))
+        jc.WithImageModel("openai/gpt-image-1"), jc.WithSize("1024x1024"))
     fmt.Printf("Image URL: %s\n", img.URL)
 }
 ```
@@ -196,7 +196,7 @@ func main() {
 
     // With explicit model
     img, _ = ic.Generate(ctx, "A futuristic cityscape at sunset",
-        jc.WithModel("openai/gpt-image-1"), jc.WithSize("1024x1024"))
+        jc.WithImageModel("openai/gpt-image-1"), jc.WithSize("1024x1024"))
     fmt.Printf("Image URL: %s\n", img.URL)
 }
 ```

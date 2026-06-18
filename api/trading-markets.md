@@ -204,31 +204,31 @@ for symbol in portfolio:
 ```
 
 ```python [Python (x402 Agent)]
-from jarvisclaw import Client
+from jarvisclaw import MarketplaceClient
 
 # x402 agent — pays $0.001 per stock call with USDC automatically
-client = Client(private_key="0x<agent-wallet-private-key>")
+client = MarketplaceClient(private_key="0x<agent-wallet-private-key>")
 
 # Stock price (auto-pays $0.001 via x402)
-aapl = client.get("/v1/marketplace/markets/stocks/nasdaq/price/AAPL")
+aapl = client.call("markets", "/stocks/nasdaq/price/AAPL")
 print(f"AAPL: ${aapl['price']}")
 
 # Crypto (free — no x402 payment triggered)
-btc = client.get("/v1/marketplace/markets/crypto/price/BTC-USD")
+btc = client.call("markets", "/crypto/price/BTC-USD")
 print(f"BTC: ${btc['price']:,.2f}")
 
 # Forex (free)
-eur = client.get("/v1/marketplace/markets/fx/price/EUR-USD")
+eur = client.call("markets", "/fx/price/EUR-USD")
 print(f"EUR/USD: {eur['rate']}")
 
 # Commodity (free)
-gold = client.get("/v1/marketplace/markets/commodity/price/GOLD")
+gold = client.call("markets", "/commodity/price/GOLD")
 print(f"Gold: ${gold['price']}/oz")
 
 # Agent portfolio monitoring loop
 import time
 while True:
-    nvda = client.get("/v1/marketplace/markets/stocks/nasdaq/price/NVDA")
+    nvda = client.call("markets", "/stocks/nasdaq/price/NVDA")
     if nvda["price"] > 150:
         print(f"NVDA alert: ${nvda['price']}")
         break
@@ -239,57 +239,31 @@ while True:
 package main
 
 import (
+    "context"
     "fmt"
 
-    jarvisclaw "github.com/api-jarvisclaw/go-sdk"
+    jc "github.com/api-jarvisclaw/go-sdk"
 )
 
 func main() {
-    client := jarvisclaw.NewClient(jarvisclaw.WithAPIKey("sk-your-api-key"))
+    ctx := context.Background()
+    mc, _ := jc.NewMarketplaceClient(jc.WithAPIKey("sk-your-api-key"))
 
     // Stock price
-    var stock struct {
-        Symbol        string  `json:"symbol"`
-        Price         float64 `json:"price"`
-        Change        float64 `json:"change"`
-        ChangePercent float64 `json:"change_percent"`
-        Volume        int64   `json:"volume"`
-    }
-    err := client.GetJSON("/v1/marketplace/markets/stocks/nasdaq/price/NVDA", nil, &stock)
-    if err != nil {
-        panic(err)
-    }
-    fmt.Printf("%s: $%.2f (%+.2f%%)
-", stock.Symbol, stock.Price, stock.ChangePercent)
+    stock, _ := mc.Call(ctx, "markets", "/stocks/nasdaq/price/NVDA")
+    fmt.Printf("NVDA: $%.2f (%+.2f%%)\n", stock["price"].(float64), stock["change_percent"].(float64))
 
     // Crypto price (free)
-    var crypto struct {
-        Pair      string  `json:"pair"`
-        Price     float64 `json:"price"`
-        Change24h float64 `json:"change_24h"`
-    }
-    _ = client.GetJSON("/v1/marketplace/markets/crypto/price/BTC-USD", nil, &crypto)
-    fmt.Printf("%s: $%.2f (24h: %+.2f%%)
-", crypto.Pair, crypto.Price, crypto.Change24h)
+    crypto, _ := mc.Call(ctx, "markets", "/crypto/price/BTC-USD")
+    fmt.Printf("BTC-USD: $%.2f (24h: %+.2f%%)\n", crypto["price"].(float64), crypto["change_24h"].(float64))
 
     // Forex rate (free)
-    var fx struct {
-        Pair string  `json:"pair"`
-        Rate float64 `json:"rate"`
-    }
-    _ = client.GetJSON("/v1/marketplace/markets/fx/price/EUR-USD", nil, &fx)
-    fmt.Printf("%s: %.4f
-", fx.Pair, fx.Rate)
+    fx, _ := mc.Call(ctx, "markets", "/fx/price/EUR-USD")
+    fmt.Printf("EUR-USD: %.4f\n", fx["rate"].(float64))
 
     // Commodity price (free)
-    var commodity struct {
-        Symbol string  `json:"symbol"`
-        Price  float64 `json:"price"`
-        Unit   string  `json:"unit"`
-    }
-    _ = client.GetJSON("/v1/marketplace/markets/commodity/price/GOLD", nil, &commodity)
-    fmt.Printf("%s: $%.2f %s
-", commodity.Symbol, commodity.Price, commodity.Unit)
+    commodity, _ := mc.Call(ctx, "markets", "/commodity/price/GOLD")
+    fmt.Printf("GOLD: $%.2f %s\n", commodity["price"].(float64), commodity["unit"].(string))
 }
 ```
 
@@ -297,47 +271,37 @@ func main() {
 package main
 
 import (
+    "context"
     "fmt"
     "time"
 
-    jarvisclaw "github.com/api-jarvisclaw/go-sdk"
+    jc "github.com/api-jarvisclaw/go-sdk"
 )
 
 func main() {
+    ctx := context.Background()
+
     // x402 agent — auto-pays $0.001 per stock call with USDC
-    client, err := jarvisclaw.NewClient(
-        jarvisclaw.WithPrivateKey("0x<agent-wallet-private-key>"),
+    mc, err := jc.NewMarketplaceClient(
+        jc.WithPrivateKey("0x<agent-wallet-private-key>"),
     )
     if err != nil {
         panic(err)
     }
 
     // Stock price (x402 pays automatically)
-    var stock struct {
-        Symbol string  `json:"symbol"`
-        Price  float64 `json:"price"`
-    }
-    _ = client.GetJSON("/v1/marketplace/markets/stocks/nasdaq/price/AAPL", nil, &stock)
-    fmt.Printf("AAPL: $%.2f
-", stock.Price)
+    stock, _ := mc.Call(ctx, "markets", "/stocks/nasdaq/price/AAPL")
+    fmt.Printf("AAPL: $%.2f\n", stock["price"].(float64))
 
     // Crypto (free — no payment needed)
-    var btc struct {
-        Price float64 `json:"price"`
-    }
-    _ = client.GetJSON("/v1/marketplace/markets/crypto/price/BTC-USD", nil, &btc)
-    fmt.Printf("BTC: $%.2f
-", btc.Price)
+    btc, _ := mc.Call(ctx, "markets", "/crypto/price/BTC-USD")
+    fmt.Printf("BTC: $%.2f\n", btc["price"].(float64))
 
     // Agent price monitoring
     for {
-        var nvda struct {
-            Price float64 `json:"price"`
-        }
-        _ = client.GetJSON("/v1/marketplace/markets/stocks/nasdaq/price/NVDA", nil, &nvda)
-        if nvda.Price > 150 {
-            fmt.Printf("NVDA alert: $%.2f
-", nvda.Price)
+        nvda, _ := mc.Call(ctx, "markets", "/stocks/nasdaq/price/NVDA")
+        if nvda["price"].(float64) > 150 {
+            fmt.Printf("NVDA alert: $%.2f\n", nvda["price"].(float64))
             break
         }
         time.Sleep(60 * time.Second)

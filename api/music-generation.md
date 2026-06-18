@@ -124,7 +124,7 @@ func main() {
 
     // With explicit model
     result, _ = ac.Music(ctx, "Chill lo-fi hip hop beat with rain sounds",
-        jc.WithModel("minimax/music-2.5"), jc.WithInstrumental(true))
+        jc.WithAudioModel("minimax/music-2.5"), jc.WithInstrumental(true))
     fmt.Printf("Track URL: %s\n", result.URL)
 }
 ```
@@ -151,7 +151,7 @@ func main() {
 
     // With explicit model
     result, _ = ac.Music(ctx, "Chill lo-fi hip hop beat",
-        jc.WithModel("minimax/music-2.5"), jc.WithInstrumental(true))
+        jc.WithAudioModel("minimax/music-2.5"), jc.WithInstrumental(true))
     fmt.Printf("Track URL: %s\n", result.URL)
 }
 ```

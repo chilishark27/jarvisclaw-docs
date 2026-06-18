@@ -295,25 +295,19 @@ search = SearchClient(private_key="0x<evm-private-key>")
 # SDK auto-detects chain from key format - no config needed
 
 # Semantic search
-results = search.search("best open source LLM frameworks 2026", num_results=5, category="github")
+results = search.query("best open source LLM frameworks 2026", num_results=5)
 for r in results:
     print(f"{r.title}: {r.url}")
 
 # Find similar pages
 similar = search.find_similar("https://github.com/langchain-ai/langchain", num_results=5)
 for r in similar:
-    print(f"{r.title} (score: {r.score})")
+    print(f"{r.title}: {r.url}")
 
 # Extract page contents
 contents = search.contents(["https://example.com/article-1", "https://example.com/article-2"])
 for c in contents:
-    print(f"{c.title}: {c.text[:100]}...")
-
-# AI-grounded answer with citations
-answer = search.answer("What is retrieval augmented generation?")
-print(answer.text)
-for source in answer.sources:
-    print(f"  Source: {source.url}")
+    print(c)
 ```
 
 ```go [Go (API Key)]
@@ -329,31 +323,13 @@ func main() {
     ctx := context.Background()
     sc, _ := jc.NewSearchClient(jc.WithAPIKey("sk-your-api-key"))
 
-    // Semantic search
-    results, _ := sc.Search(ctx, "best open source LLM frameworks 2026",
-        jc.WithNumResults(5), jc.WithCategory("github"))
-    for _, r := range results {
-        fmt.Printf("%s: %s\n", r.Title, r.URL)
-    }
-
-    // Find similar pages
-    similar, _ := sc.FindSimilar(ctx, "https://github.com/langchain-ai/langchain",
+    // Semantic search — returns *SearchResponse
+    resp, _ := sc.Query(ctx, "best open source LLM frameworks 2026",
         jc.WithNumResults(5))
-    for _, r := range similar {
-        fmt.Printf("%s (score: %.2f)\n", r.Title, r.Score)
-    }
-
-    // Extract page contents
-    contents, _ := sc.Contents(ctx, []string{"https://example.com/article"})
-    for _, c := range contents {
-        fmt.Printf("%s: %s...\n", c.Title, c.Text[:100])
-    }
-
-    // AI-grounded answer
-    answer, _ := sc.Answer(ctx, "What is retrieval augmented generation?")
-    fmt.Println(answer.Text)
-    for _, s := range answer.Sources {
-        fmt.Printf("  Source: %s\n", s.URL)
+    fmt.Printf("Summary: %s\n", resp.Summary)
+    fmt.Printf("Sources used: %d\n", resp.SourcesUsed)
+    for _, r := range resp.Citations {
+        fmt.Printf("  %s: %s\n", r.Title, r.URL)
     }
 }
 ```
@@ -373,23 +349,14 @@ func main() {
     // x402 Agent wallet - pays per-call via USDC on Base (Chain ID 8453)
     sc, _ := jc.NewSearchClient(jc.WithPrivateKey("0x<evm-private-key>"))
 
-    // Semantic search
-    results, _ := sc.Search(ctx, "best open source LLM frameworks 2026",
-        jc.WithNumResults(5), jc.WithCategory("github"))
-    for _, r := range results {
-        fmt.Printf("%s: %s\n", r.Title, r.URL)
-    }
-
-    // Find similar pages
-    similar, _ := sc.FindSimilar(ctx, "https://github.com/langchain-ai/langchain",
+    // Semantic search — returns *SearchResponse
+    resp, _ := sc.Query(ctx, "best open source LLM frameworks 2026",
         jc.WithNumResults(5))
-    for _, r := range similar {
-        fmt.Printf("%s (score: %.2f)\n", r.Title, r.Score)
+    fmt.Printf("Summary: %s\n", resp.Summary)
+    fmt.Printf("Sources used: %d\n", resp.SourcesUsed)
+    for _, r := range resp.Citations {
+        fmt.Printf("  %s: %s\n", r.Title, r.URL)
     }
-
-    // AI-grounded answer
-    answer, _ := sc.Answer(ctx, "What is retrieval augmented generation?")
-    fmt.Println(answer.Text)
 }
 ```
 

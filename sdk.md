@@ -114,7 +114,7 @@ For long-running tasks (video, music), the SDK sets sensible defaults internally
 | VideoClient | ✅ | ✅ | Base + Solana | Base only |
 | AudioClient | ✅ | ✅ | Base + Solana | Base only |
 | SearchClient | ✅ | ✅ | Base + Solana | Base only |
-| MarketplaceClient | ❌ | ✅ Private key only | Base + Solana | Base only |
+| MarketplaceClient | ✅ | ✅ | Base + Solana | Base only |
 
 ## Chat & Streaming
 

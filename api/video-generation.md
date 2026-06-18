@@ -214,27 +214,27 @@ func main() {
     ctx := context.Background()
     vc, _ := jc.NewVideoClient(jc.WithAPIKey("sk-your-api-key"))
 
-    // Text-to-video
+    // Text-to-video (blocking — Generate waits by default)
     job, _ := vc.Generate(ctx, "A cat playing piano in a jazz bar",
-        jc.WithModel("bytedance/seedance-2.0-pro"), jc.WithDuration(5))
+        jc.WithVideoModel("bytedance/seedance-2.0-pro"), jc.WithDuration(5))
+    fmt.Printf("Video URL: %s\n", job.URL)
 
-    // Image-to-video
-    job, _ = vc.Generate(ctx, "Person waving",
-        jc.WithModel("bytedance/seedance-2.0-pro"),
-        jc.WithImageURL("https://example.com/photo.jpg"),
-        jc.WithDuration(5))
-    // With RealFace character
-    job, _ = vc.Generate(ctx, "Person presenting",
-        jc.WithModel("bytedance/seedance-2.0-fast"),
-        jc.WithRealFaceAssetID("ta_xxx"),
-        jc.WithDuration(5))
+    // Non-blocking mode
+    job, _ = vc.Generate(ctx, "Ocean waves at sunset",
+        jc.WithVideoModel("bytedance/seedance-2.0-fast"),
+        jc.WithDuration(5), jc.WithWait(false))
+    fmt.Printf("Job ID: %s\n", job.ID)
 
-    // Poll until complete
+    // Poll manually
     for job.Status != "completed" {
         time.Sleep(10 * time.Second)
         job, _ = vc.Status(ctx, job.ID)
     }
     fmt.Printf("Video URL: %s\n", job.URL)
+
+    // For image-to-video and RealFace, use cURL or the Python SDK —
+    // the Go VideoClient.Generate() does not yet accept image_url
+    // or real_face_asset_id parameters.
 }
 ```
 
@@ -253,28 +253,27 @@ func main() {
     // x402 Agent wallet — pays per-call via USDC on Base (Chain ID 8453)
     vc, _ := jc.NewVideoClient(jc.WithPrivateKey("0x<evm-private-key>"))
 
-    // Text-to-video
+    // Text-to-video (blocking — Generate waits by default)
     job, _ := vc.Generate(ctx, "A cat playing piano",
-        jc.WithModel("bytedance/seedance-2.0-pro"), jc.WithDuration(5))
+        jc.WithVideoModel("bytedance/seedance-2.0-pro"), jc.WithDuration(5))
+    fmt.Printf("Video URL: %s\n", job.URL)
 
-    // Image-to-video
-    job, _ = vc.Generate(ctx, "Person waving",
-        jc.WithModel("bytedance/seedance-2.0-pro"),
-        jc.WithImageURL("https://example.com/photo.jpg"),
-        jc.WithDuration(5))
+    // Non-blocking mode
+    job, _ = vc.Generate(ctx, "Ocean waves at sunset",
+        jc.WithVideoModel("bytedance/seedance-2.0-fast"),
+        jc.WithDuration(5), jc.WithWait(false))
+    fmt.Printf("Job ID: %s\n", job.ID)
 
-    // With RealFace character
-    job, _ = vc.Generate(ctx, "Person presenting",
-        jc.WithModel("bytedance/seedance-2.0-fast"),
-        jc.WithRealFaceAssetID("ta_xxx"),
-        jc.WithDuration(5))
-
-    // Poll until complete
+    // Poll manually
     for job.Status != "completed" {
         time.Sleep(10 * time.Second)
         job, _ = vc.Status(ctx, job.ID)
     }
     fmt.Printf("Video URL: %s\n", job.URL)
+
+    // For image-to-video and RealFace, use cURL or the Python SDK —
+    // the Go VideoClient.Generate() does not yet accept image_url
+    // or real_face_asset_id parameters.
 }
 ```
 

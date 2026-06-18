@@ -36,7 +36,7 @@ Returns raw audio bytes with the appropriate `Content-Type` header.
 
 ::: code-group
 
-```python [Python]
+```python [OpenAI SDK]
 from openai import OpenAI
 
 client = OpenAI(
@@ -51,6 +51,86 @@ response = client.audio.speech.create(
 )
 
 response.stream_to_file("output.mp3")
+```
+
+```python [JarvisClaw SDK (API Key)]
+from jarvisclaw import AudioClient
+
+audio = AudioClient(api_key="sk-your-api-key")
+
+# Text-to-speech
+result = audio.speech("Hello, welcome to JarvisClaw!", voice="sarah")
+
+# Save to file
+with open("output.mp3", "wb") as f:
+    f.write(result.content)
+
+print(result.content_type)  # e.g. "audio/mpeg"
+```
+
+```python [JarvisClaw SDK (x402 Agent)]
+from jarvisclaw import AudioClient
+
+# ─── Option A: Base chain (EVM) ───
+audio = AudioClient(private_key="0x<evm-private-key>")
+
+# ─── Option B: Solana ───
+# audio = AudioClient(private_key="<solana-bs58-keypair>")
+
+# Text-to-speech with explicit model
+result = audio.speech("Hello, welcome to JarvisClaw!", model="auto/tts", voice="sarah")
+
+with open("output.mp3", "wb") as f:
+    f.write(result.content)
+```
+
+```go [Go (API Key)]
+package main
+
+import (
+    "context"
+    "fmt"
+    "os"
+    jc "github.com/api-jarvisclaw/go-sdk"
+)
+
+func main() {
+    ctx := context.Background()
+    ac, _ := jc.NewAudioClient(jc.WithAPIKey("sk-your-api-key"))
+
+    // Text-to-speech
+    result, _ := ac.Speech(ctx, "Hello, welcome to JarvisClaw!",
+        jc.WithVoice("sarah"))
+
+    // Save to file
+    os.WriteFile("output.mp3", result.Data, 0644)
+    fmt.Printf("Content-Type: %s\n", result.ContentType)
+}
+```
+
+```go [Go (x402 Agent)]
+package main
+
+import (
+    "context"
+    "fmt"
+    "os"
+    jc "github.com/api-jarvisclaw/go-sdk"
+)
+
+func main() {
+    ctx := context.Background()
+
+    // x402 Agent wallet — pays per-call via USDC on Base (Chain ID 8453)
+    ac, _ := jc.NewAudioClient(jc.WithPrivateKey("0x<evm-private-key>"))
+
+    // Text-to-speech
+    result, _ := ac.Speech(ctx, "Hello, welcome to JarvisClaw!",
+        jc.WithVoice("sarah"))
+
+    os.WriteFile("output.mp3", result.Data, 0644)
+    fmt.Printf("Content-Type: %s\n", result.ContentType)
+}
 ```
 
 ```bash [cURL]
@@ -91,7 +171,7 @@ Transcribe audio files to text.
 
 ::: code-group
 
-```python [Python]
+```python [OpenAI SDK]
 from openai import OpenAI
 
 client = OpenAI(
@@ -107,11 +187,117 @@ with open("recording.mp3", "rb") as audio_file:
     print(transcript.text)
 ```
 
+```python [JarvisClaw SDK (API Key)]
+from jarvisclaw import AudioClient
+
+audio = AudioClient(api_key="sk-your-api-key")
+
+# Transcribe audio file
+text = audio.transcribe("recording.mp3", model="whisper-1")
+print(text)
+
+# With language hint for better accuracy
+text = audio.transcribe("recording.mp3", model="whisper-1", language="en")
+print(text)
+```
+
+```python [JarvisClaw SDK (x402 Agent)]
+from jarvisclaw import AudioClient
+
+# x402 Agent wallet — pays per-call via USDC on Base
+audio = AudioClient(private_key="0x<evm-private-key>")
+
+# Transcribe audio file
+text = audio.transcribe("recording.mp3", model="whisper-1")
+print(text)
+```
+
 ```bash [cURL]
 curl https://api.jarvisclaw.ai/v1/audio/transcriptions \
   -H "Authorization: Bearer sk-your-api-key" \
   -F file="@recording.mp3" \
   -F model="whisper-1"
+```
+
+:::
+
+## Music Generation
+
+`POST /v1/audio/music`
+
+Generate music from a text prompt using the JarvisClaw SDK.
+
+### Example
+
+::: code-group
+
+```python [JarvisClaw SDK (API Key)]
+from jarvisclaw import AudioClient
+
+audio = AudioClient(api_key="sk-your-api-key")
+
+# Generate music from a prompt
+result = audio.music("upbeat electronic track with synth bass", model="auto/music")
+
+# Save the generated music
+with open("track.mp3", "wb") as f:
+    f.write(result.content)
+
+# Instrumental only (no vocals)
+result = audio.music("calm piano jazz", instrumental=True)
+with open("jazz.mp3", "wb") as f:
+    f.write(result.content)
+```
+
+```python [JarvisClaw SDK (x402 Agent)]
+from jarvisclaw import AudioClient
+
+audio = AudioClient(private_key="0x<evm-private-key>")
+
+# Generate music (waits for completion by default)
+result = audio.music("epic orchestral battle theme", wait=True)
+with open("epic.mp3", "wb") as f:
+    f.write(result.content)
+```
+
+```go [Go (API Key)]
+package main
+
+import (
+    "context"
+    "fmt"
+    jc "github.com/api-jarvisclaw/go-sdk"
+)
+
+func main() {
+    ctx := context.Background()
+    ac, _ := jc.NewAudioClient(jc.WithAPIKey("sk-your-api-key"))
+
+    // Generate music
+    result, _ := ac.Music(ctx, "upbeat electronic track with synth bass")
+    fmt.Printf("Music URL: %s\n", result.URL)
+    fmt.Printf("Job ID: %s, Status: %s\n", result.ID, result.Status)
+}
+```
+
+```go [Go (x402 Agent)]
+package main
+
+import (
+    "context"
+    "fmt"
+    jc "github.com/api-jarvisclaw/go-sdk"
+)
+
+func main() {
+    ctx := context.Background()
+
+    // x402 Agent wallet
+    ac, _ := jc.NewAudioClient(jc.WithPrivateKey("0x<evm-private-key>"))
+
+    result, _ := ac.Music(ctx, "calm piano jazz")
+    fmt.Printf("Music URL: %s\n", result.URL)
+}
 ```
 
 :::

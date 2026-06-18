@@ -160,11 +160,11 @@ func main() {
 
     // Simple completion
     response, _ := cc.Complete(ctx, "Explain quantum computing.",
-        jc.WithModel("anthropic/claude-sonnet-4"))
+        jc.WithChatModel("anthropic/claude-sonnet-4"))
     fmt.Println(response)
 
     // Streaming
-    stream, _ := cc.Stream(ctx, "Tell me a joke.", jc.WithModel("openai/gpt-5.5"))
+    stream, _ := cc.Stream(ctx, "Tell me a joke.", jc.WithChatModel("openai/gpt-5.5"))
     for chunk := range stream {
         fmt.Print(chunk)
     }
@@ -192,11 +192,11 @@ func main() {
 
     // With explicit model
     response, _ = cc.Complete(ctx, "Explain quantum computing.",
-        jc.WithModel("anthropic/claude-sonnet-4"))
+        jc.WithChatModel("anthropic/claude-sonnet-4"))
     fmt.Println(response)
 
     // Streaming
-    stream, _ := cc.Stream(ctx, "Tell me a joke.", jc.WithModel("openai/gpt-5.5"))
+    stream, _ := cc.Stream(ctx, "Tell me a joke.", jc.WithChatModel("openai/gpt-5.5"))
     for chunk := range stream {
         fmt.Print(chunk)
     }

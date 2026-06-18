@@ -237,35 +237,47 @@ requests.post(f"{BASE}/terminate", headers=HEADERS, json={
 ```
 
 ```python [Python (x402 Agent)]
-from jarvisclaw import ComputeClient
+from jarvisclaw import MarketplaceClient
 
 # --- Option A: Base chain (EVM) ---
 # Hex private key -> USDC on Base (Chain ID 8453)
-compute = ComputeClient(private_key="0x<evm-private-key>")
+client = MarketplaceClient(private_key="0x<evm-private-key>")
 
 # --- Option B: Solana ---
 # Base58 keypair -> USDC SPL on Solana mainnet
-# compute = ComputeClient(private_key="<solana-bs58-keypair>")
+# client = MarketplaceClient(private_key="<solana-bs58-keypair>")
 
 # SDK auto-detects chain from key format - no config needed
 
 # Create a sandbox
-sandbox = compute.create(timeout=300)
-print(f"Sandbox ID: {sandbox.sandbox_id}")
+sandbox = client.call("compute", "/sandbox/create", method="POST", json={
+    "timeout": 300,
+})
+print(f"Sandbox ID: {sandbox['sandbox_id']}")
 
 # Execute commands
-result = compute.exec(sandbox.sandbox_id, "pip install numpy && python -c \"import numpy; print(numpy.__version__)\"")
-print(result.stdout)
+result = client.call("compute", "/sandbox/exec", method="POST", json={
+    "sandbox_id": sandbox["sandbox_id"],
+    "command": "pip install numpy && python -c \"import numpy; print(numpy.__version__)\"",
+})
+print(result["stdout"])
 
-result = compute.exec(sandbox.sandbox_id, "python -c \"import numpy as np; print(np.random.rand(3))\"")
-print(result.stdout)
+result = client.call("compute", "/sandbox/exec", method="POST", json={
+    "sandbox_id": sandbox["sandbox_id"],
+    "command": "python -c \"import numpy as np; print(np.random.rand(3))\"",
+})
+print(result["stdout"])
 
 # Check status
-status = compute.status(sandbox.sandbox_id)
-print(f"Commands run: {status.commands_executed}")
+status = client.call("compute", "/sandbox/status", method="POST", json={
+    "sandbox_id": sandbox["sandbox_id"],
+})
+print(f"Commands run: {status['commands_executed']}")
 
 # Terminate
-compute.terminate(sandbox.sandbox_id)
+client.call("compute", "/sandbox/terminate", method="POST", json={
+    "sandbox_id": sandbox["sandbox_id"],
+})
 ```
 
 ```go [Go (API Key)]
@@ -279,22 +291,31 @@ import (
 
 func main() {
     ctx := context.Background()
-    cc, _ := jc.NewComputeClient(jc.WithAPIKey("sk-your-api-key"))
+    mc, _ := jc.NewMarketplaceClient(jc.WithAPIKey("sk-your-api-key"))
 
     // Create a sandbox
-    sandbox, _ := cc.Create(ctx, jc.WithTimeout(300))
-    fmt.Printf("Sandbox ID: %s\n", sandbox.SandboxID)
+    sandbox, _ := mc.Post(ctx, "compute", "/sandbox/create", map[string]interface{}{
+        "timeout": 300,
+    })
+    fmt.Printf("Sandbox ID: %s\n", sandbox["sandbox_id"])
 
     // Execute a command
-    result, _ := cc.Exec(ctx, sandbox.SandboxID, "python -c \"print('hello')\"")
-    fmt.Printf("Output: %s\n", result.Stdout)
+    result, _ := mc.Post(ctx, "compute", "/sandbox/exec", map[string]interface{}{
+        "sandbox_id": sandbox["sandbox_id"],
+        "command":    "python -c \"print('hello')\"",
+    })
+    fmt.Printf("Output: %s\n", result["stdout"])
 
     // Check status
-    status, _ := cc.Status(ctx, sandbox.SandboxID)
-    fmt.Printf("Status: %s, Commands: %d\n", status.Status, status.CommandsExecuted)
+    status, _ := mc.Post(ctx, "compute", "/sandbox/status", map[string]interface{}{
+        "sandbox_id": sandbox["sandbox_id"],
+    })
+    fmt.Printf("Status: %s, Commands: %v\n", status["status"], status["commands_executed"])
 
     // Terminate
-    cc.Terminate(ctx, sandbox.SandboxID)
+    mc.Post(ctx, "compute", "/sandbox/terminate", map[string]interface{}{
+        "sandbox_id": sandbox["sandbox_id"],
+    })
 }
 ```
 
@@ -311,18 +332,25 @@ func main() {
     ctx := context.Background()
 
     // x402 Agent wallet - pays per-call via USDC on Base (Chain ID 8453)
-    cc, _ := jc.NewComputeClient(jc.WithPrivateKey("0x<evm-private-key>"))
+    mc, _ := jc.NewMarketplaceClient(jc.WithPrivateKey("0x<evm-private-key>"))
 
     // Create a sandbox
-    sandbox, _ := cc.Create(ctx, jc.WithTimeout(300))
-    fmt.Printf("Sandbox ID: %s\n", sandbox.SandboxID)
+    sandbox, _ := mc.Post(ctx, "compute", "/sandbox/create", map[string]interface{}{
+        "timeout": 300,
+    })
+    fmt.Printf("Sandbox ID: %s\n", sandbox["sandbox_id"])
 
     // Execute commands
-    result, _ := cc.Exec(ctx, sandbox.SandboxID, "python -c \"print('agent execution')\"")
-    fmt.Printf("Output: %s\n", result.Stdout)
+    result, _ := mc.Post(ctx, "compute", "/sandbox/exec", map[string]interface{}{
+        "sandbox_id": sandbox["sandbox_id"],
+        "command":    "python -c \"print('agent execution')\"",
+    })
+    fmt.Printf("Output: %s\n", result["stdout"])
 
     // Terminate when done
-    cc.Terminate(ctx, sandbox.SandboxID)
+    mc.Post(ctx, "compute", "/sandbox/terminate", map[string]interface{}{
+        "sandbox_id": sandbox["sandbox_id"],
+    })
 }
 ```
 
