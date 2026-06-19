@@ -78,6 +78,7 @@ export default defineConfig({
       {
         text: 'Reference',
         items: [
+          { text: 'Architecture', link: '/architecture' },
           { text: 'Models', link: '/models' },
           { text: 'Security', link: '/security' },
         ],
